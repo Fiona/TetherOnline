@@ -1,48 +1,75 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using Mirror;
+using TetherOnline.Database;
+using TetherOnline.Network;
+using TetherOnline.NetworkData;
 using UnityEngine;
-using Npgsql;
 
-public class GameController : MonoBehaviour
+
+namespace TetherOnline
 {
-    // Start is called before the first frame update
-    void Start()
+
+    public class GameController : MonoBehaviour
     {
-        test_postgres();
-    }
+        public static GameController Instance { get; private set; }
 
-    // Update is called once per frame
-    void Update()
-    {
+        [SerializeField]
+        public DbSettings databaseSettings;
+        [SerializeField]
+        public NetworkSettings networkSettings;
+        [HideInInspector]
+        public Db database;
+        [HideInInspector]
+        public GlobalNetworkManager networkManager;
+        [HideInInspector]
+        public ServerInfo serverInfo;
 
-    }
+        private CustomLogHandler customLogHandler;
 
-    async void test_postgres()
-    {
-        var connString = "Host=127.0.0.1;Username=postgres;Password=postgres;Database=tetheronline";
-
-        await using var conn = new NpgsqlConnection(connString);
-        await conn.OpenAsync();
-
-// Insert some data
-/*
-        await using (var cmd = new NpgsqlCommand("INSERT INTO data (some_field) VALUES (@p)", conn))
+        async void Start()
         {
-            cmd.Parameters.AddWithValue("p", "Hello world");
-            await cmd.ExecuteNonQueryAsync();
-        }
-*/
-// Retrieve all rows
-        await using (var cmd = new NpgsqlCommand("SELECT id,username,superadmin FROM clients", conn))
-        await using (var reader = await cmd.ExecuteReaderAsync())
-        {
-            while(await reader.ReadAsync())
-            {
-                Debug.Log(reader.GetInt32(0));
-                Debug.Log(reader.GetString(1));
-                Debug.Log(reader.GetBoolean(2));
-            }
+            Instance = this;
+
+            customLogHandler = new CustomLogHandler();
+            var networkManagerObj = new GameObject("Network Manager");
+            networkManager = networkManagerObj.AddComponent<GlobalNetworkManager>();
+#if IS_SERVER
+            await PrepareServer();
+#endif
         }
 
+
+        void Update()
+        {
+
+        }
+
+        async Task PrepareServer()
+        {
+#if IS_SERVER
+            Db.settings = databaseSettings;
+            var dbObject = new GameObject("Postgresql Database");
+            database = dbObject.AddComponent<Db>();
+
+            Log.Message("Preparing server...", "GLOBAL");
+            await database.WaitTillReady();
+            networkManager.StartServer();
+            while(!NetworkServer.active)
+                await Task.Delay(15);
+
+            var serverInfoObj = Instantiate(
+                NetworkPrefabs.GetNetworkPrefab("ServerInfo"), Vector3.zero, Quaternion.identity
+            );
+            NetworkServer.Spawn(serverInfoObj);
+            serverInfo = serverInfoObj.GetComponent<ServerInfo>();
+            serverInfo.serverVersion = Consts.serverVersion;
+            serverInfo.serverState = ServerState.Stopped;
+            serverInfo.name = "Server Info";
+            Log.Message("Server prepared and listening for clients.", "GLOBAL");
+#endif
+        }
     }
+
 }

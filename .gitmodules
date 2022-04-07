@@ -1,8 +1,3 @@
-[submodule "Assets/Resources/TetherOnlineSharedResources"]
-	path = Assets/Resources/TetherOnlineSharedResources
-	url = git@github.com:Fiona/TetherOnlineSharedResources.git
-[submodule "TetherOnlineSharedResources"]
-	branch = main
 [submodule "Assets/Plugins/StompyBlondieUnityTools"]
 	path = Assets/Plugins/StompyBlondieUnityTools
-	url = git@bitbucket.org:FionaSarah/stompyblondieunitytools.git
+	url = git@github.com:Fiona/StompyBlondieUnityTools.git
